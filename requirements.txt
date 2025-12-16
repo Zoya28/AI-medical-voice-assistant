@@ -1,0 +1,20 @@
+# python 3.12.5
+pyaudio 
+numpy 
+faster_whisper 
+joblib 
+sentence_transformers 
+streamlit
+pandas 
+scikit-learn
+spacy
+bitsandbytes
+# langchain_groq 
+# dotenv
+transformers
+torch
+accelerate
+langgraph
+influxdb-client
+pytz
+python-dateutil

@@ -1,0 +1,110 @@
+How Confidence is Measured in nlp_processor.py
+
+1. Rule-Based Confidence (0.0 - 1.0)
+The confidence score is calculated using 6 weighted factors:
+Formula:
+confidence = pattern_score          (0-0.4)  40%
+           + keyword_score          (0-0.3)  30%
+           + priority_score         (0-0.2)  20%
+           + match_strength         (0-0.1)  10%
+           - competition_penalty    (0-0.2)  penalty
+           - length_penalty         (0-0.1)  penalty
+Breakdown:
+A. Pattern Score (40% weight)
+
+How many regex patterns matched?
+score = (matched_patterns / total_patterns) × 0.4
+Example: 2 out of 3 patterns matched = (2/3) × 0.4 = 0.267
+
+B. Keyword Score (30% weight)
+
+How many keywords were found?
+score = (matched_keywords / total_keywords) × 0.3
+Example: 3 out of 8 keywords = (3/8) × 0.3 = 0.113
+
+C. Priority Score (20% weight)
+
+More specific intents get higher priority
+score = (intent_priority / 5) × 0.2
+Example: Priority 4 out of 5 = (4/5) × 0.2 = 0.16
+
+D. Match Strength (10% weight)
+
+Bonus for multiple matches
+score = min(total_matches / 5, 1.0) × 0.1
+Example: 5 total matches = (5/5) × 0.1 = 0.1
+
+E. Competition Penalty (up to -0.2)
+
+Reduces confidence when multiple intents match
+penalty = -min(competing_intents × 0.05, 0.2)
+Example: 2 competitors = -0.10
+
+F. Length Penalty (up to -0.1)
+
+Short queries are less reliable
+penalty = -0.1 if query < 3 words
+penalty = -0.05 if query < 5 words
+
+
+2. LLM-Based Confidence (0.0 - 1.0)
+The confidence comes from the models output probabilities:
+Formula:
+confidence = model_probability      (0-0.7)  70%
+           + entropy_confidence     (0-0.15) 15%
+           + gap_confidence         (0-0.15) 15%
+           - json_penalty           (0-0.3)  penalty
+           - intent_penalty         (0-0.2)  penalty
+Breakdown:
+A. Model Probability (70% weight)
+
+Softmax probability of predicted class
+score = max_probability × 0.7
+Example: 95% probability = 0.95 × 0.7 = 0.665
+
+B. Entropy Confidence (15% weight)
+
+Lower entropy = more certain prediction
+score = (1 - normalized_entropy) × 0.15
+High entropy means model is unsure
+
+C. Gap Confidence (15% weight)
+
+Difference between top 2 predictions
+score = (prob1 - prob2) × 0.15
+Larger gap = more confident
+
+D. JSON Penalty (-0.3)
+
+If LLM output isn't valid JSON
+
+E. Intent Penalty (-0.2)
+
+If predicted intent not in allowed list
+
+
+🎯 Real Example
+Query: "What was my step count yesterday?"
+Rule-Based Calculation:
+Matched: 2 patterns, 3 keywords
+Priority: 2, Query length: 6 words, Competitors: 0
+
+pattern_score     = (2/3) × 0.4 = 0.267
+keyword_score     = (3/8) × 0.3 = 0.113
+priority_score    = (2/5) × 0.2 = 0.080
+match_strength    = (5/5) × 0.1 = 0.100
+competition_penalty = 0.000 (no competitors)
+length_penalty    = 0.000 (6 words is fine)
+
+TOTAL = 0.560 ✓ MEDIUM confidence
+Decision: Since 0.560 < 0.7 threshold → Try LLM fallback
+LLM Calculation:
+Model predicts with 0.95 probability
+
+model_probability  = 0.95 × 0.7  = 0.665
+entropy_confidence = 0.87 × 0.15 = 0.131
+gap_confidence     = 0.60 × 0.15 = 0.090
+json_penalty       = 0.000 (valid JSON)
+intent_penalty     = 0.000 (valid intent)
+
+TOTAL = 0.886 ✓ HIGH confidence
